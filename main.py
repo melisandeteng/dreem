@@ -12,6 +12,7 @@ from sklearn.metrics import mean_squared_error
 
 import local_info
 
+# gpu?
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 # fix random seed for reproducibility
