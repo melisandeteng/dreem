@@ -24,13 +24,13 @@ np.random.seed(7)
 # ################################ SETTINGS ################################  #
 
 # should we use the small dataset?
-small_dataset = True
+small_dataset = False
+# are we saving the results?
+saving_results = True
 # are we storing part of the dataset for future use?
 storing_small_dataset = False
-# are we saving the results?
-saving_results = False
 # name of the file where saving results
-output_name = "gboost"
+output_name = "conv network test (only resp)"
 output_name = output_name  \
               + "_" + str(datetime.date.today().day) \
               + "-" + str(datetime.date.today().month) \
@@ -44,13 +44,13 @@ output_name = output_name  \
 # load the dataset
 print("Reading dataset...")
 if small_dataset:
+    print("Small dataset chosen")
     df_train = pd.read_csv(local_info.data_path + 'extract_train.csv')
     df_test = pd.read_csv(local_info.data_path + 'extract_test.csv')
-    print("Small dataset chosen")
 else:
+    print("Full dataset chosen")
     df_train = pd.read_csv(local_info.data_path+'train.csv')
     df_test = pd.read_csv(local_info.data_path+'test.csv')
-    print("Full dataset chosen")
 dataset_train = df_train.values
 dataset_train = dataset_train.astype('float32')
 names = df_train.columns
@@ -74,41 +74,53 @@ dataset_train = scaler.fit_transform(dataset_train)
 dataset_test = scaler.fit_transform(dataset_test)
 
 # model
-fait_chier = False
-if fait_chier:
+nb_epoch = 10
+validation_share = 0.5
+lr = 0.1
+
+convolution = True
+if convolution:
     model = Sequential()
-    model.add(Conv1D(kernel_size=1, filters=64, input_shape=(3205, 1)))
+    #model.add(Dense(units=200, activation='tanh', input_dim=3205))
+    model.add(Conv1D(kernel_size=1, filters=64, input_shape=(400, 3)))
     model.add(Activation('relu'))
     model.add(Flatten())
-    model.add(Dropout(0.4))
-    # model.add(Dense(2048, activation='relu'))
-    # model.add(Dense(1024, activation='relu'))
+    model.add(Dropout(0.5))
+    model.add(Dense(32, activation='relu'))
+    model.add(Dense(32, activation='relu'))
     model.add(Dense(1, activation='relu'))
+    sgd = SGD(lr=0.1, nesterov=True, decay=1e-6, momentum=0.9)
+    model.compile(loss='mse', optimizer='rmsprop')
+else:
     model = ensemble.GradientBoostingRegressor(n_estimators=100)
-    sgd = SGD(lr=0.01, nesterov=True, decay=1e-6, momentum=0.9)
-    model.compile(loss='mean_squared_error', optimizer=sgd, metrics=['accuracy'])
-
-model = ensemble.GradientBoostingRegressor(n_estimators=100)
-
-nb_epoch = 15
-validation_share = 0.5
 
 total_number = len(df_train)
 valid_number = round(validation_share * total_number)
 train_number = total_number - valid_number
 
-train_data_x = df_train[df_train.columns[1:3206]][0:train_number].as_matrix()
-train_data_y = df_train[df_train.columns[3206:3207]][0:train_number].values.ravel()
+if convolution:
+    train_data_x = np.reshape(df_train[df_train.columns[2001:3201]][0:train_number].values, (train_number, 400, 3))
+    train_data_y = df_train[df_train.columns[3206:3207]][0:train_number].values.ravel()
 
-valid_data_x = df_train[df_train.columns[1:3206]][(train_number+1):total_number].as_matrix()
-valid_data_y = df_train[df_train.columns[3206:3207]][(train_number+1):total_number].values.ravel()
+    valid_data_x = np.reshape(df_train[df_train.columns[2001:3201]][train_number:total_number].values, (valid_number, 400, 3))
+    valid_data_y = df_train[df_train.columns[3206:3207]][train_number:total_number].values.ravel()
 
-# we remove first column which contains the user id (which is also the row index...)
-test_data_x = df_test[df_train.columns[1:3206]].as_matrix()
+    # we remove first column which contains the user id (which is also the row index...)
+    test_data_x = np.reshape(df_test[df_train.columns[2001:3201]].values, (total_number, 400, 3))
 
-#fitting the model
-model.fit(train_data_x, train_data_y)
-#model.fit(train_data_x, train_data_y, nb_epoch=nb_epoch, validation_data=(valid_data_x, valid_data_y), batch_size=16)
+    # fitting the model
+    model.fit(train_data_x, train_data_y, epochs=nb_epoch, validation_data=(valid_data_x, valid_data_y), batch_size=16)
+else:
+    train_data_x = df_train[df_train.columns[1:3206]][0:train_number].as_matrix()
+    train_data_y = df_train[df_train.columns[3206:3207]][0:train_number].values.ravel()
+
+    valid_data_x = df_train[df_train.columns[1:3206]][(train_number+1):total_number].as_matrix()
+    valid_data_y = df_train[df_train.columns[3206:3207]][(train_number+1):total_number].values.ravel()
+
+    # we remove first column which contains the user id (which is also the row index...)
+    test_data_x = df_test[df_train.columns[1:3206]].as_matrix()
+    # fitting the model
+    model.fit(train_data_x, train_data_y)
 
 print("Done fitting model!")
 
@@ -131,4 +143,4 @@ if saving_results:
     df_test_pred.columns = ['power_increase']
     df_test_pred.index.names = ['index']
     df_test_pred.to_csv(output_name, encoding='utf-8')
-    print("Stored dataset under the name '%s' at location '%s'" % (output_name, os.getcwd()))
+    print("Stored dataset under the name '%s' at location '%s'" % (output_name+("-VS%.2f" % valid_score), os.getcwd()))
