@@ -76,20 +76,24 @@ dataset_test = scaler.fit_transform(dataset_test)
 # model
 nb_epoch = 10
 validation_share = 0.5
-lr = 0.1
+lr = 1
 
 convolution = True
 if convolution:
     model = Sequential()
     #model.add(Dense(units=200, activation='tanh', input_dim=3205))
-    model.add(Conv1D(kernel_size=1, filters=64, input_shape=(400, 3)))
+    model.add(Conv1D(kernel_size=12, filters=32, input_shape=(400, 3)))
+    model.add(Activation('relu'))
+    model.add(Conv1D(kernel_size=5, filters=64, input_shape=(400, 3)))
+    model.add(Activation('relu'))
+    model.add(Conv1D(kernel_size=3, filters=128, input_shape=(400, 3)))
     model.add(Activation('relu'))
     model.add(Flatten())
     model.add(Dropout(0.5))
     model.add(Dense(64, activation='relu'))
     model.add(Dense(64, activation='relu'))
     model.add(Dense(1, activation='relu'))
-    sgd = SGD(lr=0.1, nesterov=True, decay=1e-6, momentum=0.9)
+    sgd = SGD(lr=lr, nesterov=True, decay=1e-6, momentum=0.9)
     model.compile(loss='mse', optimizer='rmsprop')
 else:
     model = ensemble.GradientBoostingRegressor(n_estimators=100)
