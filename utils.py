@@ -4,6 +4,26 @@ import os
 import local_info
 
 
+def load_dataset(small_dataset, storing_small_dataset):
+    print("Reading dataset...")
+    if small_dataset:
+        print("Small dataset chosen")
+        df_train = pd.read_csv(local_info.data_path + 'extract_train.csv')
+        df_test = pd.read_csv(local_info.data_path + 'extract_test.csv')
+    else:
+        print("Full dataset chosen")
+        df_train = pd.read_csv(local_info.data_path + 'train.csv')
+        df_test = pd.read_csv(local_info.data_path + 'test.csv')
+    print("Done reading dataset! \n")
+
+    # stores an extract of 500 rows instead of 50k for debugging purposes
+    if storing_small_dataset:
+        store_small_dataset(df_train, 500, "train")
+        store_small_dataset(df_test, 500, "test")
+
+    return df_train, df_test
+
+
 # normalizes all columns except last one (power increase)
 def normalize_dataframe(df):
     scaler = MinMaxScaler(feature_range=(-1, 1))
