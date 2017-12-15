@@ -20,9 +20,7 @@ output_name = output_name  \
 
 # ##########################################################################  #
 
+# tries all values in array for the parameter in the gradient_boost function
 array = [10, 50, 100, 200, 500]
-results = [[]]
-for i in range(0, len(array)):
-    res_train, res_valid = model_problem.gradient_boost(small_dataset, saving_results, storing_small_dataset, output_name, array[i])
-    results += [[array[i],res_train, res_valid]]
-print(results)
+model_problem.gradient_boost(small_dataset, saving_results, storing_small_dataset, output_name, array)
+
