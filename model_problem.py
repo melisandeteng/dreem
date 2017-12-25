@@ -8,6 +8,7 @@ from sklearn import ensemble
 from sklearn.metrics import mean_squared_error
 import local_info
 import utils
+from sklearn.preprocessing import OneHotEncoder
 
 
 class dreem_model:
@@ -16,45 +17,65 @@ class dreem_model:
         # load the dataset
         self.df_train, self.df_test \
             = utils.load_dataset(self.settings['small_dataset'], self.settings['storing_small_dataset'])
-        # normalize the dataset into [-1, +1]
-        df_test = utils.normalize_dataframe(self.df_test)
-        df_train = utils.normalize_dataframe(self.df_train)
+
+        # # IS THIS USEFUL???
+        # # normalize the dataset into [-1, +1]
+        # self.df_test = utils.normalize_dataframe(self.df_test)
+        # self.df_train = utils.normalize_dataframe(self.df_train)
 
         # choose validation and training data from the training set
-        total_number = len(df_train)
+        total_number = len(self.df_train)
         valid_number = round(self.settings['validation_share'] * total_number)
         train_number = total_number - valid_number
 
         # extract relevant data into appropriate subgroups
-        names = df_train.columns
+        names = self.df_train.columns
 
-        self.train_data_x = df_train[names[1:3206]][0:train_number].as_matrix()
-        self.valid_data_x = df_train[names[1:3206]][train_number:total_number].as_matrix()
-        self.test_data_x = df_test[names[1:3206]].as_matrix()
+        self.train_data_x = self.df_train[names[1:3206]][0:train_number].as_matrix()
+        self.valid_data_x = self.df_train[names[1:3206]][train_number:total_number].as_matrix()
+        self.test_data_x = self.df_test[names[1:3206]].as_matrix()
 
         self.train_data_eeg \
-            = np.reshape(df_train[names[1:2001]][0:train_number].values, (train_number, 2000, 1))
+            = np.reshape(self.df_train[names[1:2001]][0:train_number].values, (train_number, 2000, 1))
         self.valid_data_eeg \
-            = np.reshape(df_train[names[1:2001]][train_number:total_number].values, (valid_number, 2000, 1))
+            = np.reshape(self.df_train[names[1:2001]][train_number:total_number].values, (valid_number, 2000, 1))
         self.test_data_eeg \
-            = np.reshape(df_test[names[1:2001]].values, (total_number, 2000, 1))
+            = np.reshape(self.df_test[names[1:2001]].values, (total_number, 2000, 1))
 
         self.train_data_resp \
-            = np.reshape(df_train[names[2001:3201]][0:train_number].values, (train_number, 400, 3))
+            = np.reshape(self.df_train[names[2001:3201]][0:train_number].values, (train_number, 400, 3))
         self.valid_data_resp \
-            = np.reshape(df_train[names[2001:3201]][train_number:total_number].values, (valid_number, 400, 3))
+            = np.reshape(self.df_train[names[2001:3201]][train_number:total_number].values, (valid_number, 400, 3))
         self.test_data_resp \
-            = np.reshape(df_test[names[2001:3201]].values, (total_number, 400, 3))
+            = np.reshape(self.df_test[names[2001:3201]].values, (total_number, 400, 3))
 
-        self.train_data_meta \
-            = np.reshape(df_train[names[3201:3206]][0:train_number].values, (train_number, 5))
-        self.valid_data_meta \
-            = np.reshape(df_train[names[3201:3206]][train_number:total_number].values, (valid_number, 5))
-        self.test_data_meta \
-            = np.reshape(df_test[names[3201:3206]].values, (total_number, 5))
+        # One Hot Encoding for users
+        users_train = np.reshape(self.df_train[names[3204:3205]].values, (total_number, 1))
+        users_test = np.reshape(self.df_test[names[3204:3205]].values, (total_number, 1))
+        enc = OneHotEncoder()
+        enc.fit(users_train)
+        encoded_users_train = enc.transform(users_train).toarray()
+        encoded_users_test = enc.transform(users_test).toarray()
+        print("Number of different users (train): %s" % np.shape(encoded_users_train)[1])
+        print("Number of different users (test): %s" % np.shape(encoded_users_test)[1])
 
-        self.train_data_y = df_train[names[3206:3207]][0:train_number].values.ravel()
-        self.valid_data_y = df_train[names[3206:3207]][train_number:total_number].values.ravel()
+        self.train_data_meta = np.concatenate(
+            (np.reshape(self.df_train[names[3201:3204]][0:train_number].values, (train_number, 3)),
+             np.reshape(self.df_train[names[3205:3206]][0:train_number].values, (train_number, 1)),
+             encoded_users_train[0:train_number]), axis=1)
+        self.valid_data_meta = np.concatenate(
+            (np.reshape(self.df_train[names[3201:3204]][train_number:total_number].values, (valid_number, 3)),
+             np.reshape(self.df_train[names[3205:3206]][train_number:total_number].values, (valid_number, 1)),
+             encoded_users_train[train_number:total_number]), axis=1)
+        self.test_data_meta = np.concatenate(
+            (np.reshape(self.df_test[names[3201:3204]].values, (total_number, 3)),
+             np.reshape(self.df_train[names[3205:3206]].values, (total_number, 1)),
+             encoded_users_test), axis=1)
+
+        print(np.shape(self.train_data_meta)[1])
+
+        self.train_data_y = self.df_train[names[3206:3207]][0:train_number].values.ravel()
+        self.valid_data_y = self.df_train[names[3206:3207]][train_number:total_number].values.ravel()
 
         self.results = []
 
@@ -107,7 +128,7 @@ class dreem_model:
         branch_resp.add(Dense(64, activation='relu'))
 
         branch_meta = Sequential()
-        branch_meta.add(Dense(5, activation='relu', input_dim=5))
+        branch_meta.add(Dense(np.shape(self.train_data_meta)[1], activation='relu', input_dim=5))
 
         model = Sequential()
         model.add(Merge([branch_eeg, branch_resp, branch_meta], mode='concat'))
