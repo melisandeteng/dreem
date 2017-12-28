@@ -12,7 +12,7 @@ settings['storing_small_dataset'] = False
 # how to split the 50,000 training examples into training set / validation set
 settings['validation_share'] = 0.5
 # how many time we go through the data
-settings['nb_epoch'] = 5
+settings['nb_epoch'] = 15
 # name of the file where saving results
 output_name = "grad_boost + CNN"
 settings['output_name'] = output_name  \
@@ -25,6 +25,10 @@ settings['output_name'] = output_name  \
 # settings['model_option'] = 'convolution'
 settings['model_option'] = 'convolution + gradient_boost'
 
+# regularization parameter (lambda)
+settings['regularization_param'] = 0.001
+# learning rate (default = 0.001)
+settings['lr'] = 0.001
 # ##########################################################################  #
 
 # tries all values in array for the parameter in the gradient_boost function

@@ -4,6 +4,8 @@ import math
 import os
 from keras.models import Sequential
 from keras.layers import Dense, Flatten, Conv1D, Dropout, Merge, MaxPooling1D
+from keras.optimizers import RMSprop, Adam
+from keras.regularizers import l2
 from sklearn import ensemble
 from sklearn.metrics import mean_squared_error
 import local_info
@@ -20,9 +22,7 @@ class dreem_model:
 
         names = self.df_train.columns
         # IS THIS USEFUL???
-        # normalize the dataset into [-1, +1]
-        # self.df_train = utils.normalize_dataframe(self.df_train)
-        # self.df_test = utils.normalize_dataframe(self.df_test)
+        # normalize the eeg / resp dataset into [-1, +1]
         self.df_train[names[1:3200]] = utils.normalize_dataframe(self.df_train[names[1:3200]])
         self.df_test[names[1:3200]] = utils.normalize_dataframe(self.df_test[names[1:3200]])
 
@@ -60,24 +60,18 @@ class dreem_model:
         print("Number of different users (train): %s" % np.shape(encoded_users_train)[1])
         print("Number of different users (test): %s" % np.shape(encoded_users_test)[1])
 
-        wtf = False
-        if wtf:
-            self.train_data_meta = np.reshape(self.df_train[names[3201:3206]][0:train_number].values, (train_number, 5))
-            self.valid_data_meta = np.reshape(self.df_train[names[3201:3206]][train_number:total_number].values, (valid_number, 5))
-            self.test_data_meta = np.reshape(self.df_test[names[3201:3206]].values, (total_number, 5))
-        else:
-            self.train_data_meta = np.concatenate(
-                (np.reshape(self.df_train[names[3201:3204]][0:train_number].values, (train_number, 3)),
-                 np.reshape(self.df_train[names[3205:3206]][0:train_number].values, (train_number, 1)),
-                 encoded_users_train[0:train_number]), axis=1)
-            self.valid_data_meta = np.concatenate(
-                (np.reshape(self.df_train[names[3201:3204]][train_number:total_number].values, (valid_number, 3)),
-                 np.reshape(self.df_train[names[3205:3206]][train_number:total_number].values, (valid_number, 1)),
-                 encoded_users_train[train_number:total_number]), axis=1)
-            self.test_data_meta = np.concatenate(
-                (np.reshape(self.df_test[names[3201:3204]].values, (total_number, 3)),
-                 np.reshape(self.df_train[names[3205:3206]].values, (total_number, 1)),
-                 encoded_users_test), axis=1)
+        self.train_data_meta = np.concatenate(
+            (np.reshape(self.df_train[names[3201:3204]][0:train_number].values, (train_number, 3)),
+             np.reshape(self.df_train[names[3205:3206]][0:train_number].values, (train_number, 1)),
+             encoded_users_train[0:train_number]), axis=1)
+        self.valid_data_meta = np.concatenate(
+            (np.reshape(self.df_train[names[3201:3204]][train_number:total_number].values, (valid_number, 3)),
+             np.reshape(self.df_train[names[3205:3206]][train_number:total_number].values, (valid_number, 1)),
+             encoded_users_train[train_number:total_number]), axis=1)
+        self.test_data_meta = np.concatenate(
+            (np.reshape(self.df_test[names[3201:3204]].values, (total_number, 3)),
+             np.reshape(self.df_train[names[3205:3206]].values, (total_number, 1)),
+             encoded_users_test), axis=1)
 
         self.train_data_y = self.df_train[names[3206:3207]][0:train_number].values.ravel()
         self.valid_data_y = self.df_train[names[3206:3207]][train_number:total_number].values.ravel()
@@ -119,35 +113,49 @@ class dreem_model:
     def convolution_model(self):
         # define model
         branch_eeg = Sequential()
-        branch_eeg.add(Conv1D(kernel_size=20, filters=32, input_shape=(2000, 1), activation='relu'))
+        branch_eeg.add(Conv1D(kernel_size=20, filters=32, input_shape=(2000, 1), activation='relu',
+                              kernel_regularizer=l2(self.settings['regularization_param'])))
         branch_eeg.add(Dropout(0.5))
-        branch_eeg.add(Conv1D(kernel_size=5, filters=64, activation='relu'))
-        branch_eeg.add(MaxPooling1D(pool_size=3))
-        branch_eeg.add(Conv1D(kernel_size=3, filters=128, activation='relu'))
+        branch_eeg.add(MaxPooling1D(pool_size=12))
+        branch_eeg.add(Conv1D(kernel_size=5, filters=64, activation='relu',
+                              kernel_regularizer=l2(self.settings['regularization_param'])))
+        branch_eeg.add(MaxPooling1D(pool_size=6))
+        branch_eeg.add(Conv1D(kernel_size=3, filters=128, activation='relu',
+                              kernel_regularizer=l2(self.settings['regularization_param'])))
         branch_eeg.add(Dropout(0.5))
-        branch_eeg.add(Conv1D(kernel_size=3, filters=128, activation='relu'))
-        branch_eeg.add(Conv1D(kernel_size=3, filters=128, activation='relu'))
+        branch_eeg.add(Conv1D(kernel_size=3, filters=128, activation='relu',
+                              kernel_regularizer=l2(self.settings['regularization_param'])))
+        branch_eeg.add(MaxPooling1D(pool_size=4))
+        branch_eeg.add(Conv1D(kernel_size=3, filters=128, activation='relu',
+                              kernel_regularizer=l2(self.settings['regularization_param'])))
         branch_eeg.add(Flatten())
         branch_eeg.add(Dropout(0.5))
-        branch_eeg.add(Dense(64, activation='relu'))
+        branch_eeg.add(Dense(64, activation='relu', kernel_regularizer=l2(self.settings['regularization_param'])))
 
         branch_resp = Sequential()
-        branch_resp.add(Conv1D(kernel_size=8, filters=64, input_shape=(400, 3), activation='relu'))
+        branch_resp.add(Conv1D(kernel_size=8, filters=64, input_shape=(400, 3), activation='relu',
+                               kernel_regularizer=l2(self.settings['regularization_param'])))
         branch_resp.add(Dropout(0.5))
-        branch_resp.add(Conv1D(kernel_size=5, filters=128, activation='relu'))
-        branch_resp.add(MaxPooling1D(pool_size=2))
+        branch_resp.add(MaxPooling1D(pool_size=8))
+        branch_resp.add(Conv1D(kernel_size=5, filters=128, activation='relu',
+                               kernel_regularizer=l2(self.settings['regularization_param'])))
+        branch_resp.add(MaxPooling1D(pool_size=8))
         branch_resp.add(Flatten())
         branch_resp.add(Dropout(0.5))
         branch_resp.add(Dense(64, activation='relu'))
 
         branch_meta = Sequential()
-        branch_meta.add(Dense(5, activation='relu', input_dim=np.shape(self.train_data_meta)[1]))
+        branch_meta.add(Dense(16, activation='relu', input_dim=np.shape(self.train_data_meta)[1],
+                              kernel_regularizer=l2(self.settings['regularization_param'])))
 
         model = Sequential()
         model.add(Merge([branch_eeg, branch_resp, branch_meta], mode='concat'))
-        model.add(Dense(64, activation='relu'))
-        model.add(Dense(1, activation='relu'))
-        model.compile(loss='mse', optimizer='rmsprop')
+        model.add(Dense(256, activation='relu', kernel_regularizer=l2(self.settings['regularization_param'])))
+        model.add(Dense(256, activation='relu', kernel_regularizer=l2(self.settings['regularization_param'])))
+        model.add(Dense(1, activation='relu', kernel_regularizer=l2(self.settings['regularization_param'])))
+
+        optimizer = Adam(lr=self.settings['lr'])
+        model.compile(loss='mse', optimizer=optimizer)
 
         # print(self.train_data_eeg[0:5])
         # print(self.train_data_resp[0:5])
@@ -160,6 +168,11 @@ class dreem_model:
                   validation_data=([self.valid_data_eeg, self.valid_data_resp, self.valid_data_meta],
                                    self.valid_data_y)
                   )
+
+        print(branch_eeg.summary())
+        print(branch_resp.summary())
+        print(branch_meta.summary())
+        print(model.summary())
 
         # test prediction
         train_pred = model.predict([self.train_data_eeg, self.train_data_resp, self.train_data_meta])
@@ -201,32 +214,35 @@ class dreem_model:
         truncated_branch_eeg.add(Conv1D(kernel_size=20, filters=32, input_shape=(2000, 1), activation='relu',
                                    weights=branch_eeg.layers[0].get_weights()))
         truncated_branch_eeg.add(Dropout(0.5))
+        truncated_branch_eeg.add(MaxPooling1D(pool_size=12))
         truncated_branch_eeg.add(Conv1D(kernel_size=5, filters=64, activation='relu',
-                                   weights=branch_eeg.layers[2].get_weights()))
-        truncated_branch_eeg.add(MaxPooling1D(pool_size=3))
+                                   weights=branch_eeg.layers[3].get_weights()))
+        truncated_branch_eeg.add(MaxPooling1D(pool_size=6))
         truncated_branch_eeg.add(Conv1D(kernel_size=3, filters=128, activation='relu',
-                                   weights=branch_eeg.layers[4].get_weights()))
+                                   weights=branch_eeg.layers[5].get_weights()))
         truncated_branch_eeg.add(Dropout(0.5))
         truncated_branch_eeg.add(Conv1D(kernel_size=3, filters=128, activation='relu',
-                                   weights=branch_eeg.layers[6].get_weights()))
-        truncated_branch_eeg.add(Conv1D(kernel_size=3, filters=128, activation='relu',
                                    weights=branch_eeg.layers[7].get_weights()))
+        truncated_branch_eeg.add(MaxPooling1D(pool_size=4))
+        truncated_branch_eeg.add(Conv1D(kernel_size=3, filters=128, activation='relu',
+                                   weights=branch_eeg.layers[9].get_weights()))
         truncated_branch_eeg.add(Flatten())
         truncated_branch_eeg.add(Dropout(0.5))
         truncated_branch_eeg.add(Dense(64, activation='relu',
-                                   weights=branch_eeg.layers[10].get_weights()))
+                                   weights=branch_eeg.layers[12].get_weights()))
 
         truncated_branch_resp = Sequential()
         truncated_branch_resp.add(Conv1D(kernel_size=8, filters=64, input_shape=(400, 3), activation='relu',
                                    weights=branch_resp.layers[0].get_weights()))
         truncated_branch_resp.add(Dropout(0.5))
+        truncated_branch_resp.add(MaxPooling1D(pool_size=8))
         truncated_branch_resp.add(Conv1D(kernel_size=5, filters=128, activation='relu',
-                                   weights=branch_resp.layers[2].get_weights()))
-        truncated_branch_resp.add(MaxPooling1D(pool_size=2))
+                                   weights=branch_resp.layers[3].get_weights()))
+        truncated_branch_resp.add(MaxPooling1D(pool_size=8))
         truncated_branch_resp.add(Flatten())
         truncated_branch_resp.add(Dropout(0.5))
         truncated_branch_resp.add(Dense(64, activation='relu',
-                                   weights=branch_resp.layers[6].get_weights()))
+                                   weights=branch_resp.layers[7].get_weights()))
 
         # print(branch_eeg.layers)
         # print(branch_resp.layers)
@@ -234,13 +250,15 @@ class dreem_model:
         # print(conv_model.layers)
 
         truncated_branch_meta = Sequential()
-        truncated_branch_meta.add(Dense(5, activation='relu', input_dim=np.shape(self.train_data_meta)[1],
+        truncated_branch_meta.add(Dense(16, activation='relu', input_dim=np.shape(self.train_data_meta)[1],
                                    weights=branch_meta.layers[0].get_weights()))
 
         truncated_model = Sequential()
         truncated_model.add(Merge([branch_eeg, branch_resp, branch_meta], mode='concat'))
-        truncated_model.add(Dense(64, activation='relu',
+        truncated_model.add(Dense(256, activation='relu',
                                    weights=conv_model.layers[1].get_weights()))
+        truncated_model.add(Dense(256, activation='relu',
+                                   weights=conv_model.layers[2].get_weights()))
 
         activations_train = truncated_model.predict([self.train_data_eeg, self.train_data_resp, self.train_data_meta])
         activations_valid = truncated_model.predict([self.valid_data_eeg, self.valid_data_resp, self.valid_data_meta])
