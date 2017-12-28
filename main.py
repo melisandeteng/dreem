@@ -27,14 +27,16 @@ settings['model_option'] = 'convolution + gradient_boost'
 
 # regularization parameter (lambda)
 settings['regularization_param'] = 0.001
-# learning rate (default = 0.001)
-settings['lr'] = 0.001
+# default = 0.001 (learning rate of adam = the cnn optimizer used)
+settings['adam_lr'] = 0.001
+# default = 0.1 (learning rate of gradient boost)
+settings['grad_boost_lr'] = 0.1
+# default = 1 (reducing it under 1 = regularization)
+settings['grad_boost_subsample'] = 0.3
 # ##########################################################################  #
 
-# tries all values in array for the parameter in the gradient_boost function
-# validation results ~ 10-0.65 50-0.60 100-(0.514, 0.587) 200-(0.487, 0.575) 500-(0.442, 0.573)
-# avec overfitting croissant de 0.05 à 0.13
-array = [150]
+# parameter of gradient boost
+parameter = 150
 model = model_problem.dreem_model(settings)
-model.apply_model(array)
+model.apply_model(parameter)
 model.describe_self()

@@ -70,7 +70,7 @@ class dreem_model:
              encoded_users_train[train_number:total_number]), axis=1)
         self.test_data_meta = np.concatenate(
             (np.reshape(self.df_test[names[3201:3204]].values, (total_number, 3)),
-             np.reshape(self.df_train[names[3205:3206]].values, (total_number, 1)),
+             np.reshape(self.df_test[names[3205:3206]].values, (total_number, 1)),
              encoded_users_test), axis=1)
 
         self.train_data_y = self.df_train[names[3206:3207]][0:train_number].values.ravel()
@@ -93,8 +93,8 @@ class dreem_model:
                 self.results += [[p, train_score, valid_score]]
         elif self.settings['model_option'] == 'convolution + gradient_boost':
             print("\nModel chosen: CNN + gradient boost on learned features")
-            train_pred, valid_pred, test_pred, train_score, valid_score = self.conv_grad_model()
-            self.results += [['Conv + 100-gradient boost', train_score, valid_score]]
+            train_pred, valid_pred, test_pred, train_score, valid_score = self.conv_grad_model(param)
+            self.results += [['Conv + '+str(param)+'-gradient boost', train_score, valid_score]]
 
         # saves the results to a csv in the "local_info" path
         if 'test_pred' not in locals():
@@ -154,7 +154,7 @@ class dreem_model:
         model.add(Dense(256, activation='relu', kernel_regularizer=l2(self.settings['regularization_param'])))
         model.add(Dense(1, activation='relu', kernel_regularizer=l2(self.settings['regularization_param'])))
 
-        optimizer = Adam(lr=self.settings['lr'])
+        optimizer = Adam(lr=self.settings['adam_lr'])
         model.compile(loss='mse', optimizer=optimizer)
 
         # print(self.train_data_eeg[0:5])
@@ -187,7 +187,9 @@ class dreem_model:
         return model, branch_eeg, branch_resp, branch_meta, train_pred, valid_pred, test_pred, train_score, valid_score
 
     def simple_gradient_boost_model(self, train_data_x, train_data_y, valid_data_x, valid_data_y, test_data_x, parameter):
-        model = ensemble.GradientBoostingRegressor(n_estimators=parameter)
+        model = ensemble.GradientBoostingRegressor(n_estimators=parameter,
+                                                   learning_rate=self.settings['grad_boost_lr'],
+                                                   subsample=self.settings['grad_boost_subsample'])
         model.fit(train_data_x, train_data_y)
         train_pred = model.predict(train_data_x)
         if len(valid_data_y != 0):
@@ -206,9 +208,8 @@ class dreem_model:
 
         return train_pred, valid_pred, test_pred, train_score, valid_score
 
-    def conv_grad_model(self):
-        conv_model, branch_eeg, branch_resp, branch_meta, \
-        train_pred, valid_pred, test_pred, train_score, valid_score = self.convolution_model()
+    def conv_grad_model(self, param):
+        conv_model, branch_eeg, branch_resp, branch_meta, train_pred, valid_pred, test_prediction, train_score, valid_score = self.convolution_model()
 
         truncated_branch_eeg = Sequential()
         truncated_branch_eeg.add(Conv1D(kernel_size=20, filters=32, input_shape=(2000, 1), activation='relu',
@@ -264,15 +265,22 @@ class dreem_model:
         activations_valid = truncated_model.predict([self.valid_data_eeg, self.valid_data_resp, self.valid_data_meta])
         activations_test = truncated_model.predict([self.test_data_eeg, self.test_data_resp, self.test_data_meta])
 
-        train_concat = np.concatenate(
-            (activations_train, np.reshape(self.train_data_x, (-1, np.shape(self.train_data_x)[1]))), axis=1)
-        valid_concat = np.concatenate(
-            (activations_valid, np.reshape(self.valid_data_x, (-1, np.shape(self.train_data_x)[1]))), axis=1)
-        test_concat = np.concatenate(
-            (activations_test, np.reshape(self.test_data_x, (-1, np.shape(self.train_data_x)[1]))), axis=1)
+        wtf = True
+        if wtf:
+            train_concat = activations_train
+            valid_concat = activations_valid
+            test_concat = activations_test
+        else:
+            train_concat = np.concatenate(
+                (activations_train, np.reshape(self.train_data_x, (-1, np.shape(self.train_data_x)[1]))), axis=1)
+            valid_concat = np.concatenate(
+                (activations_valid, np.reshape(self.valid_data_x, (-1, np.shape(self.train_data_x)[1]))), axis=1)
+            test_concat = np.concatenate(
+                (activations_test, np.reshape(self.test_data_x, (-1, np.shape(self.train_data_x)[1]))), axis=1)
 
+        # apply gradient boost model
         train_pred, valid_pred, test_pred, train_score, valid_score = self.simple_gradient_boost_model(
-            train_concat, self.train_data_y, valid_concat, self.valid_data_y, test_concat, 150)
+            train_concat, self.train_data_y, valid_concat, self.valid_data_y, test_concat, param)
 
         # print results
         train_score = math.sqrt(mean_squared_error(self.train_data_y, train_pred))

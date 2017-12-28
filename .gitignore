@@ -1,1 +1,6 @@
 local_info.py
+*.iml
+*.xml
+*.pyc
+bfg-1.12.16.jar
+v_env/*
