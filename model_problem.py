@@ -11,6 +11,7 @@ from sklearn.metrics import mean_squared_error
 import local_info
 import utils
 from sklearn.preprocessing import OneHotEncoder
+import matplotlib.pyplot as plt
 
 
 class dreem_model:
@@ -78,23 +79,23 @@ class dreem_model:
 
         self.results = []
 
-    def apply_model(self, param):
+    def apply_model(self):
         # choose between possible models
         if self.settings['model_option'] == 'convolution':
             print("\nModel chosen: CNN")
             conv_model, branch_eeg, branch_resp, branch_meta,\
             train_pred, valid_pred, test_pred, train_score, valid_score = self.convolution_model()
-            self.results += [['Conv', train_score, valid_score]]
+            str_res = 'CNN'
         elif self.settings['model_option'] == 'gradient_boost':
             print("\nModel chosen: gradient boosting")
-            for p in param:
-                train_pred, valid_pred, test_pred, train_score, valid_score = self.simple_gradient_boost_model(
-                    self.train_data_x, self.train_data_y, self.valid_data_x, self.valid_data_y, self.test_data_x, p)
-                self.results += [[p, train_score, valid_score]]
+            train_pred, valid_pred, test_pred, train_score, valid_score = self.simple_gradient_boost_model(
+                self.train_data_x, self.train_data_y, self.valid_data_x, self.valid_data_y, self.test_data_x)
+            str_res = str(self.settings['grad_boost_param']) + '-gradient boost'
         elif self.settings['model_option'] == 'convolution + gradient_boost':
             print("\nModel chosen: CNN + gradient boost on learned features")
-            train_pred, valid_pred, test_pred, train_score, valid_score = self.conv_grad_model(param)
-            self.results += [['Conv + '+str(param)+'-gradient boost', train_score, valid_score]]
+            train_pred, valid_pred, test_pred, train_score, valid_score = self.conv_grad_model()
+            str_res = 'Conv + '+str(self.settings['grad_boost_param'])+'-gradient boost'
+        self.results += [[str_res, train_score, valid_score]]
 
         # saves the results to a csv in the "local_info" path
         if 'test_pred' not in locals():
@@ -163,11 +164,20 @@ class dreem_model:
         # print(self.train_data_y[0:5])
 
         # fit model
-        model.fit([self.train_data_eeg, self.train_data_resp, self.train_data_meta], self.train_data_y,
-                  epochs=self.settings['nb_epoch'], batch_size=25,
-                  validation_data=([self.valid_data_eeg, self.valid_data_resp, self.valid_data_meta],
-                                   self.valid_data_y)
-                  )
+        history = model.fit([self.train_data_eeg, self.train_data_resp, self.train_data_meta], self.train_data_y,
+                            epochs=self.settings['nb_epoch'], batch_size=250,
+                            validation_data=([self.valid_data_eeg, self.valid_data_resp, self.valid_data_meta],
+                                             self.valid_data_y))
+
+        if self.settings['display']:
+            # summarize history for loss
+            plt.plot(history.history['loss'])
+            plt.plot(history.history['val_loss'])
+            plt.title('model loss')
+            plt.ylabel('loss')
+            plt.xlabel('epoch')
+            plt.legend(['train', 'test'], loc='upper left')
+            plt.show()
 
         print(branch_eeg.summary())
         print(branch_resp.summary())
@@ -186,10 +196,11 @@ class dreem_model:
 
         return model, branch_eeg, branch_resp, branch_meta, train_pred, valid_pred, test_pred, train_score, valid_score
 
-    def simple_gradient_boost_model(self, train_data_x, train_data_y, valid_data_x, valid_data_y, test_data_x, parameter):
-        model = ensemble.GradientBoostingRegressor(n_estimators=parameter,
+    def simple_gradient_boost_model(self, train_data_x, train_data_y, valid_data_x, valid_data_y, test_data_x):
+        model = ensemble.GradientBoostingRegressor(n_estimators=self.settings['grad_boost_param'],
                                                    learning_rate=self.settings['grad_boost_lr'],
-                                                   subsample=self.settings['grad_boost_subsample'])
+                                                   subsample=self.settings['grad_boost_subsample'],
+                                                   max_features=self.settings['grad_boost_max_features'])
         model.fit(train_data_x, train_data_y)
         train_pred = model.predict(train_data_x)
         if len(valid_data_y != 0):
@@ -204,11 +215,11 @@ class dreem_model:
             valid_score = math.sqrt(mean_squared_error(valid_data_y, valid_pred))
         else:
             valid_score = 0
-        print('Gradient boost! Param: %s \nTrain Score: %.2f RMSE \nValidation Score: %.2f RMSE\n' % (parameter, train_score, valid_score))
+        print('Gradient boost! Param: %s \nTrain Score: %.2f RMSE \nValidation Score: %.2f RMSE\n' % (self.settings['grad_boost_param'], train_score, valid_score))
 
         return train_pred, valid_pred, test_pred, train_score, valid_score
 
-    def conv_grad_model(self, param):
+    def conv_grad_model(self):
         conv_model, branch_eeg, branch_resp, branch_meta, train_pred, valid_pred, test_prediction, train_score, valid_score = self.convolution_model()
 
         truncated_branch_eeg = Sequential()
@@ -280,7 +291,7 @@ class dreem_model:
 
         # apply gradient boost model
         train_pred, valid_pred, test_pred, train_score, valid_score = self.simple_gradient_boost_model(
-            train_concat, self.train_data_y, valid_concat, self.valid_data_y, test_concat, param)
+            train_concat, self.train_data_y, valid_concat, self.valid_data_y, test_concat)
 
         # print results
         train_score = math.sqrt(mean_squared_error(self.train_data_y, train_pred))
