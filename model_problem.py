@@ -197,7 +197,7 @@ class dreem_model:
         return model, branch_eeg, branch_resp, branch_meta, train_pred, valid_pred, test_pred, train_score, valid_score
 
     def simple_gradient_boost_model(self, train_data_x, train_data_y, valid_data_x, valid_data_y, test_data_x):
-        model = ensemble.GradientBoostingRegressor(n_estimators=self.settings['grad_boost_param'],
+        model = ensemble.GradientBoostingRegressor(loss = 'huber', n_estimators=self.settings['grad_boost_param'],
                                                    learning_rate=self.settings['grad_boost_lr'],
                                                    subsample=self.settings['grad_boost_subsample'],
                                                    max_features=self.settings['grad_boost_max_features'])
