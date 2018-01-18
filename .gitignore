@@ -4,3 +4,4 @@ local_info.py
 *.pyc
 bfg-1.12.16.jar
 v_env/*
+test.py

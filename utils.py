@@ -1,7 +1,25 @@
 import pandas as pd
+import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 import os
 import local_info
+
+
+def load_activations():
+    print("Reading dataset...")
+    activations_train = np.loadtxt(local_info.data_path + 'activations_train.csv', delimiter=",")
+    activations_valid = np.loadtxt(local_info.data_path + 'activations_valid.csv', delimiter=",")
+    activations_test = np.loadtxt(local_info.data_path + 'activations_test.csv', delimiter=",")
+    print("Activations have been read from csv! (train shape is %s)" % str(np.shape(activations_train)))
+    return activations_train, activations_valid, activations_test
+
+
+def store_activations(activ_train, activ_valid, activ_test):
+    os.chdir(local_info.data_path)
+    np.savetxt('activations_train.csv', activ_train, delimiter=",")
+    np.savetxt('activations_valid.csv', activ_valid, delimiter=",")
+    np.savetxt('activations_test.csv', activ_test, delimiter=",")
+    print("Activations have been stored! (train shape is %s)\n" % str(np.shape(activ_train)))
 
 
 def load_dataset(small_dataset, storing_small_dataset):
@@ -26,13 +44,8 @@ def load_dataset(small_dataset, storing_small_dataset):
 
 # normalizes all columns except last one (power increase)
 def normalize_dataframe(df):
-    scaler = MinMaxScaler(feature_range=(-1, 1))
-    names = df.columns
-    if len(names) <= 3206:
-        df_out = pd.DataFrame(scaler.fit_transform(df.values), columns=names)
-    else:
-        df_out = pd.DataFrame(scaler.fit_transform(df[df.columns[0:3206]].values), columns=names[0:3206])
-        df_out['power_increase'] = df['power_increase']
+    df_out = df.sub(df.mean(axis=1), axis=0)
+    df_out = df_out.div(df_out.max(axis=1), axis=0)
     return df_out
 
 
