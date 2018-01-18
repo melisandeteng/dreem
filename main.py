@@ -17,6 +17,9 @@ settings['nb_epoch'] = 15
 # name of the file where saving results
 output_name = "grad_boost + CNN"
 
+# using fft?
+settings['fft'] = False
+
 # should we use stored activations if the we use CNN + grad_boost?
 settings['use_stored_activations'] = True
 # should store activations this time?
@@ -24,7 +27,7 @@ settings['should_store_activations'] = False
 # use only activations or compute grad_boost on activations + raw data?
 settings['use_only_activations'] = True
 if output_name != "grad_boost + CNN" and (settings['use_stored_activations'] or settings['use_only_activations'] or settings['should_store_activations']):
-    "You're doing this wrong... don't use stored activations if you're not doing CNN + grad_boost!&"
+    "You're doing this wrong... don't use stored activations if you're not doing CNN + grad_boost!"
 
 settings['output_name'] = output_name  \
               + "_" + str(datetime.date.today().day) \
@@ -48,9 +51,9 @@ settings['grad_boost_lr'] = 0.1
 # default = 1 (reducing it under 1 = regularization)
 settings['grad_boost_subsample'] = 0.8
 # default = None
-settings['grad_boost_max_features'] = "auto"
+settings['grad_boost_max_features'] = None
 # gradient boost parameter (= number of estimators)
-settings['grad_boost_param'] = 300
+settings['grad_boost_param'] = 100
 # ##########################################################################  #
 start_time = time.time()
 model = model_problem.dreem_model(settings)

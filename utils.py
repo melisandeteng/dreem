@@ -5,7 +5,7 @@ import local_info
 
 
 def load_activations():
-    print("Reading dataset...")
+    print("Reading activations dataset...")
     activations_train = np.loadtxt(local_info.data_path + 'activations_train.csv', delimiter=",")
     activations_valid = np.loadtxt(local_info.data_path + 'activations_valid.csv', delimiter=",")
     activations_test = np.loadtxt(local_info.data_path + 'activations_test.csv', delimiter=",")
@@ -22,7 +22,7 @@ def store_activations(activ_train, activ_valid, activ_test):
 
 
 def load_dataset(small_dataset, storing_small_dataset):
-    print("Reading dataset...")
+    print("Reading raw dataset...")
     if small_dataset:
         print("Small dataset chosen")
         df_train = pd.read_csv(local_info.data_path + 'extract_train.csv')

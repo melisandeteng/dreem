@@ -12,11 +12,13 @@ import local_info
 import utils
 from sklearn.preprocessing import OneHotEncoder, QuantileTransformer
 import matplotlib.pyplot as plt
+from scipy.fftpack import fftn
 
 
 class dreem_model:
     def __init__(self, settings):
         self.settings = settings
+
         # load the dataset
         self.df_train, self.df_test \
             = utils.load_dataset(self.settings['small_dataset'], self.settings['storing_small_dataset'])
@@ -96,6 +98,16 @@ class dreem_model:
         self.valid_data_y = self.df_train[names[3206:3207]][train_number:total_number].values.ravel()
 
         self.results = []
+
+        if settings['fft']:
+            y = np.fft.rfft(self.train_data_resp, 20)
+            print("shape after rfft: %s" % str(np.shape(y)))
+            x = np.fft.rfftn(self.train_data_resp, 20)
+            print("shape after rfftn: %s" % str(np.shape(x)))
+            print(x)
+            print("shape before fft: %s" % str(np.shape(self.train_data_resp)))
+            self.fourier = np.apply_along_axis(lambda x: np.append(np.fft.fft(x, n).real, np.fft.fft(x, n).imag), 1,
+                                               self.ND)
 
     def apply_model(self):
         # choose between possible models
@@ -178,7 +190,8 @@ class dreem_model:
         return branch_eeg, train_pred, valid_pred, test_pred, train_score, valid_score
 
     def simple_gradient_boost_model(self, train_data_x, train_data_y, valid_data_x, valid_data_y, test_data_x):
-        model = ensemble.GradientBoostingRegressor(loss='mse', n_estimators=self.settings['grad_boost_param'],
+        # model = ensemble.AdaBoostRegressor(n_estimators=500)
+        model = ensemble.GradientBoostingRegressor(n_estimators=self.settings['grad_boost_param'],
                                                    learning_rate=self.settings['grad_boost_lr'],
                                                    subsample=self.settings['grad_boost_subsample'],
                                                    max_features=self.settings['grad_boost_max_features'])
@@ -232,9 +245,12 @@ class dreem_model:
                     utils.store_activations(activations_train, activations_valid, activations_test)
 
         if self.settings['use_only_activations']:
-            train_concat = activations_train
-            valid_concat = activations_valid
-            test_concat = activations_test
+            train_concat = np.concatenate(
+                (activations_train, np.reshape(self.train_data_meta, (-1, np.shape(self.train_data_meta)[1]))), axis=1)
+            valid_concat = np.concatenate(
+                (activations_valid, np.reshape(self.valid_data_meta, (-1, np.shape(self.valid_data_meta)[1]))), axis=1)
+            test_concat = np.concatenate(
+                (activations_test, np.reshape(self.test_data_meta, (-1, np.shape(self.train_data_meta)[1]))), axis=1)
         else:
             train_concat = np.concatenate(
                 (activations_train, np.reshape(self.train_data_x, (-1, np.shape(self.train_data_x)[1]))), axis=1)
