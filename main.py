@@ -47,13 +47,13 @@ settings['regularization_param'] = 0
 # default = 0.001 (learning rate of adam = the cnn optimizer used)
 settings['adam_lr'] = 0.001
 # default = 0.1 (learning rate of gradient boost)
-settings['grad_boost_lr'] = 0.1
+settings['grad_boost_lr'] = 0.08
 # default = 1 (reducing it under 1 = regularization)
 settings['grad_boost_subsample'] = 0.8
 # default = None
 settings['grad_boost_max_features'] = None
 # gradient boost parameter (= number of estimators)
-settings['grad_boost_param'] = 100
+settings['grad_boost_param'] = 300
 # ##########################################################################  #
 start_time = time.time()
 model = model_problem.dreem_model(settings)
