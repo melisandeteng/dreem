@@ -1,6 +1,5 @@
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import MinMaxScaler
 import os
 import local_info
 
@@ -43,9 +42,9 @@ def load_dataset(small_dataset, storing_small_dataset):
 
 
 # normalizes all columns except last one (power increase)
-def normalize_dataframe(df):
-    df_out = df.sub(df.mean(axis=1), axis=0)
-    df_out = df_out.div(df_out.max(axis=1), axis=0)
+def normalize_dataframe(df, mean, var):
+    df_out = df.sub(mean, axis=0)
+    df_out = df_out.div(var, axis=0)
     return df_out
 
 

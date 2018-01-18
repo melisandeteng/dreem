@@ -11,16 +11,16 @@ settings['saving_results'] = not settings['small_dataset']
 # are we storing part of the dataset for future use?
 settings['storing_small_dataset'] = False
 # how to split the 50,000 training examples into training set / validation set
-settings['validation_share'] = 0.5
+settings['validation_share'] = 0.2
 # how many time we go through the data
 settings['nb_epoch'] = 15
 # name of the file where saving results
 output_name = "grad_boost + CNN"
 
 # should we use stored activations if the we use CNN + grad_boost?
-settings['use_stored_activations'] = False
+settings['use_stored_activations'] = True
 # should store activations this time?
-settings['should_store_activations'] = True
+settings['should_store_activations'] = False
 # use only activations or compute grad_boost on activations + raw data?
 settings['use_only_activations'] = True
 if output_name != "grad_boost + CNN" and (settings['use_stored_activations'] or settings['use_only_activations'] or settings['should_store_activations']):
@@ -50,7 +50,7 @@ settings['grad_boost_subsample'] = 0.8
 # default = None
 settings['grad_boost_max_features'] = "auto"
 # gradient boost parameter (= number of estimators)
-settings['grad_boost_param'] = 50
+settings['grad_boost_param'] = 300
 # ##########################################################################  #
 start_time = time.time()
 model = model_problem.dreem_model(settings)
