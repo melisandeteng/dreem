@@ -99,15 +99,15 @@ class dreem_model:
 
         self.results = []
 
-        if settings['fft']:
+        if settings['test_fft']:
             y = np.fft.rfft(self.train_data_resp, 20)
             print("shape after rfft: %s" % str(np.shape(y)))
-            x = np.fft.rfftn(self.train_data_resp, 20)
-            print("shape after rfftn: %s" % str(np.shape(x)))
-            print(x)
+            X = np.fft.fftn(self.train_data_resp)
+            print("shape after fftn: %s" % str(np.shape(X)))
             print("shape before fft: %s" % str(np.shape(self.train_data_resp)))
-            self.fourier = np.apply_along_axis(lambda x: np.append(np.fft.fft(x, n).real, np.fft.fft(x, n).imag), 1,
-                                               self.ND)
+            print(np.shape(self.train_data_resp[:, :, 0]))
+            z = np.apply_along_axis(lambda x: np.fft.rfft(x)[0:20], 1, self.train_data_resp[:, :, 0])
+            print("shape after RS: %s" % str(np.shape(z)))
 
     def apply_model(self):
         # choose between possible models
@@ -244,20 +244,58 @@ class dreem_model:
                 else:
                     utils.store_activations(activations_train, activations_valid, activations_test)
 
-        if self.settings['use_only_activations']:
-            train_concat = np.concatenate(
-                (activations_train, np.reshape(self.train_data_meta, (-1, np.shape(self.train_data_meta)[1]))), axis=1)
-            valid_concat = np.concatenate(
-                (activations_valid, np.reshape(self.valid_data_meta, (-1, np.shape(self.valid_data_meta)[1]))), axis=1)
-            test_concat = np.concatenate(
-                (activations_test, np.reshape(self.test_data_meta, (-1, np.shape(self.train_data_meta)[1]))), axis=1)
+        if self.settings['do_not_use_raw_features']:
+            if self.settings['small_dataset']:
+                train_concat = activations_train[0:round((1 - self.settings['validation_share']) * len(self.df_train))]
+                valid_concat = activations_valid[0:round(self.settings['validation_share'] * len(self.df_train))]
+                test_concat = activations_test[0:len(self.df_train)]
+            else:
+                train_concat = np.concatenate(
+                    (activations_train, np.reshape(self.train_data_meta, (-1, np.shape(self.train_data_meta)[1])),
+                     np.apply_along_axis(lambda x: np.fft.rfft(x)[0:self.settings['fft_setting']], 1,
+                                         self.train_data_resp[:, :, 0]),
+                     np.apply_along_axis(lambda x: np.fft.rfft(x)[0:self.settings['fft_setting']], 1,
+                                         self.train_data_resp[:, :, 1]),
+                     np.apply_along_axis(lambda x: np.fft.rfft(x)[0:self.settings['fft_setting']], 1,
+                                         self.train_data_resp[:, :, 2])), axis=1)
+                # print(np.shape(self.valid_data_meta))
+                # print(np.shape(np.reshape(self.valid_data_meta, (-1, np.shape(self.valid_data_meta)[1]))))
+                # print(np.shape(np.apply_along_axis(lambda x: np.fft.rfft(x)[0:self.settings['fft_setting']], 1,
+                #                          self.valid_data_resp[:, :, 0])))
+                # print(np.shape(np.apply_along_axis(lambda x: np.fft.rfft(x)[0:self.settings['fft_setting']], 1,
+                #                          self.valid_data_resp[:, :, 1])))
+                # print(np.shape(np.apply_along_axis(lambda x: np.fft.rfft(x)[0:self.settings['fft_setting']], 1,
+                #                          self.valid_data_resp[:, :, 2])))
+                valid_concat = np.concatenate(
+                    (activations_valid, np.reshape(self.valid_data_meta, (-1, np.shape(self.valid_data_meta)[1])),
+                     np.apply_along_axis(lambda x: np.fft.rfft(x)[0:self.settings['fft_setting']], 1,
+                                         self.valid_data_resp[:, :, 0]),
+                     np.apply_along_axis(lambda x: np.fft.rfft(x)[0:self.settings['fft_setting']], 1,
+                                         self.valid_data_resp[:, :, 1]),
+                     np.apply_along_axis(lambda x: np.fft.rfft(x)[0:self.settings['fft_setting']], 1,
+                                         self.valid_data_resp[:, :, 2])), axis=1)
+                test_concat = np.concatenate(
+                    (activations_test, np.reshape(self.test_data_meta, (-1, np.shape(self.train_data_meta)[1])),
+                     np.apply_along_axis(lambda x: np.fft.rfft(x)[0:self.settings['fft_setting']], 1,
+                                         self.test_data_resp[:, :, 0]),
+                     np.apply_along_axis(lambda x: np.fft.rfft(x)[0:self.settings['fft_setting']], 1,
+                                         self.test_data_resp[:, :, 1]),
+                     np.apply_along_axis(lambda x: np.fft.rfft(x)[0:self.settings['fft_setting']], 1,
+                                         self.test_data_resp[:, :, 2])), axis=1)
+                print("Using activations + OHE + FFT (total train dimension: %s" % str(np.shape(train_concat)))
         else:
-            train_concat = np.concatenate(
-                (activations_train, np.reshape(self.train_data_x, (-1, np.shape(self.train_data_x)[1]))), axis=1)
-            valid_concat = np.concatenate(
-                (activations_valid, np.reshape(self.valid_data_x, (-1, np.shape(self.train_data_x)[1]))), axis=1)
-            test_concat = np.concatenate(
-                (activations_test, np.reshape(self.test_data_x, (-1, np.shape(self.train_data_x)[1]))), axis=1)
+            if self.settings['small_dataset']:
+                train_concat = activations_train[0:round((1-self.settings['validation_share']) * len(self.df_train))]
+                valid_concat = activations_valid[0:round(self.settings['validation_share'] * len(self.df_train))]
+                test_concat = activations_test[0:len(self.df_train)]
+            else:
+                train_concat = np.concatenate(
+                    (activations_train, np.reshape(self.train_data_x, (-1, np.shape(self.train_data_x)[1]))), axis=1)
+                valid_concat = np.concatenate(
+                    (activations_valid, np.reshape(self.valid_data_x, (-1, np.shape(self.train_data_x)[1]))), axis=1)
+                test_concat = np.concatenate(
+                    (activations_test, np.reshape(self.test_data_x, (-1, np.shape(self.train_data_x)[1]))), axis=1)
+                print("Using activations + raw features")
 
         # apply gradient boost model
         train_pred, valid_pred, test_pred, train_score, valid_score = self.simple_gradient_boost_model(
