@@ -192,7 +192,8 @@ class dreem_model:
 
     def light_gradient_boost_model(self, train_data_x, train_data_y, valid_data_x, valid_data_y, test_data_x):
         model = lgb.LGBMRegressor(objective = 'regressor', num_leaves = 31, learning_rate = 0.05, n_estimators = 100)
-        model.fit(train_data_x, train_data_y, early_stopping_rounds = 5)
+        model.fit(train_data_x, train_data_y, eval_set=[(valid_data_x, valid_data_y)],
+        eval_metric='l1', early_stopping_rounds = 5)
         print('Start prediction,...')
         train_pred = model.predict(train_data_x, num_iteration = model.best_iteration_ )
 
