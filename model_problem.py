@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import lightgbm as lgb
 import math
 import os
 from keras.models import Sequential
@@ -78,8 +79,8 @@ class dreem_model:
         enc.fit(users_train)
         encoded_users_train = enc.transform(users_train).toarray()
         encoded_users_test = enc.transform(users_test).toarray()
-        print("Number of different users (train): %s" % np.shape(encoded_users_train)[1])
-        print("Number of different users (test): %s" % np.shape(encoded_users_test)[1])
+        #print("Number of different users (train): %s" % np.shape(encoded_users_train)[1])
+        #print("Number of different users (test): %s" % np.shape(encoded_users_test)[1])
 
         self.train_data_meta = np.concatenate(
             (np.reshape(self.df_train[names[3201:3204]][0:train_number].values, (train_number, 3)),
@@ -189,12 +190,35 @@ class dreem_model:
 
         return branch_eeg, train_pred, valid_pred, test_pred, train_score, valid_score
 
+    def light_gradient_boost_model(self, train_data_x, train_data_y, valid_data_x, valid_data_y, test_data_x):
+        model = lgb.LGBMRegressor(objective = 'regressor', num_leaves = 31, learning_rate = 0.05, n_estimators = 100)
+        model.fit(train_data_x, train_data_y, early_stopping_rounds = 5)
+        print('Start prediction,...')
+        train_pred = model.predict(train_data_x, num_iteration = model.best_iteration_ )
+
+        # print results
+        if len(valid_data_y != 0):
+            valid_pred = model.predict(valid_data_x)
+        else:
+            valid_pred = 0
+        test_pred = model.predict(test_data_x)
+        train_score = math.sqrt(mean_squared_error(train_data_y, train_pred))
+        if len(valid_data_y != 0):
+            valid_score = math.sqrt(mean_squared_error(valid_data_y, valid_pred))
+        else:
+            valid_score = 0
+        print('Gradient boost! Param: %s \nTrain Score: %.2f RMSE \nValidation Score: %.2f RMSE\n' % (self.settings['grad_boost_param'], train_score, valid_score))
+
+        return train_pred, valid_pred, test_pred, train_score, valid_score
+
+
     def simple_gradient_boost_model(self, train_data_x, train_data_y, valid_data_x, valid_data_y, test_data_x):
         # model = ensemble.AdaBoostRegressor(n_estimators=500)
         model = ensemble.GradientBoostingRegressor(n_estimators=self.settings['grad_boost_param'],
                                                    learning_rate=self.settings['grad_boost_lr'],
                                                    subsample=self.settings['grad_boost_subsample'],
                                                    max_features=self.settings['grad_boost_max_features'])
+
         model.fit(train_data_x, train_data_y)
         train_pred = model.predict(train_data_x)
         if len(valid_data_y != 0):
@@ -298,7 +322,7 @@ class dreem_model:
                 print("Using activations + raw features")
 
         # apply gradient boost model
-        train_pred, valid_pred, test_pred, train_score, valid_score = self.simple_gradient_boost_model(
+        train_pred, valid_pred, test_pred, train_score, valid_score = self.light_gradient_boost_model(
             train_concat, self.train_data_y, valid_concat, self.valid_data_y, test_concat)
 
         # print results

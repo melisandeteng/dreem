@@ -48,7 +48,7 @@ settings['regularization_param'] = 0
 # default = 0.001 (learning rate of adam = the cnn optimizer used)
 settings['adam_lr'] = 0.001
 # default = 0.1 (learning rate of gradient boost)
-settings['grad_boost_lr'] = 0.08
+settings['grad_boost_lr'] = 0.1
 # default = 1 (reducing it under 1 = regularization)
 settings['grad_boost_subsample'] = 0.8
 # default = None
