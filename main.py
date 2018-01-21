@@ -14,17 +14,24 @@ settings['storing_small_dataset'] = False
 settings['validation_share'] = 0.2
 # how many time we go through the data
 settings['nb_epoch'] = 15
+# number of cnn filters
+settings['conv_size'] = 200
+# valid end of nn 0.4007
+# ensemble or lightgbm grad boost?
+settings['lightgbm'] = True
 # name of the file where saving results
 output_name = "grad_boost + CNN"
 
-# using fft?
-settings['test_fft'] = False
-settings['fft_setting'] = 30
+# use raw data or FFT in neural network?
+settings['NN_FFT'] = True
+
+# How many components should we keep from Fast Fourier Transform?
+settings['fft_setting'] = 20
 
 # should we use stored activations if the we use CNN + grad_boost?
-settings['use_stored_activations'] = True
+settings['use_stored_activations'] = False
 # should store activations this time?
-settings['should_store_activations'] = False
+settings['should_store_activations'] = True
 # use only activations or compute grad_boost on activations + raw data?
 settings['do_not_use_raw_features'] = True
 if output_name != "grad_boost + CNN" and (settings['use_stored_activations'] or settings['use_only_activations'] or settings['should_store_activations']):
@@ -43,18 +50,22 @@ settings['model_option'] = 'convolution + gradient_boost'
 # display evolution of training error?
 settings['display'] = False
 
-# regularization parameter (lambda)
+# regularization parameter (lambda) of CNN
 settings['regularization_param'] = 0
 # default = 0.001 (learning rate of adam = the cnn optimizer used)
 settings['adam_lr'] = 0.001
 # default = 0.1 (learning rate of gradient boost)
-settings['grad_boost_lr'] = 0.1
+settings['grad_boost_lr'] = 0.01
 # default = 1 (reducing it under 1 = regularization)
-settings['grad_boost_subsample'] = 0.6
-# default = None
-settings['grad_boost_max_features'] = 30
-# gradient boost parameter (= number of estimators)
-settings['grad_boost_param'] = 30
+settings['grad_boost_subsample'] = 0.8
+# default = 20
+settings['min_samples_leaf'] = 100
+# default = -1
+settings['max_depth'] = 4
+# default = None (NOT USED IN LIGHTGBM)
+settings['grad_boost_max_features'] = None
+# gradient boost parameter (= number of estimators) -> for lightgbm it goes up until that number but stops automatically (early stopping)
+settings['grad_boost_param'] = 10000
 # ##########################################################################  #
 start_time = time.time()
 model = model_problem.dreem_model(settings)
