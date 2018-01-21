@@ -18,6 +18,9 @@ settings['nb_epoch'] = 10
 settings['conv_size'] = 200
 # ensemble or lightgbm grad boost?
 settings['lightgbm'] = True
+
+#Gridsearch?
+settings['grid_search']= True
 # name of the file where saving results
 output_name = "grad_boost + CNN"
 

@@ -14,7 +14,7 @@ from sklearn.preprocessing import OneHotEncoder, QuantileTransformer
 import matplotlib.pyplot as plt
 from scipy.fftpack import fftn
 import lightgbm as lgb
-
+from sklearn.model_selection import GridSearchCV
 
 class dreem_model:
     def __init__(self, settings):
@@ -205,20 +205,47 @@ class dreem_model:
     def simple_gradient_boost_model(self, train_data_x, train_data_y, valid_data_x, valid_data_y, test_data_x):
         # model = ensemble.AdaBoostRegressor(n_estimators=500)
         if self.settings['lightgbm']:
-            model = lgb.LGBMRegressor(objective='regression', reg_alpha=100, reg_lambda=100, n_estimators=self.settings['grad_boost_param'],
-                                      subsample=self.settings['grad_boost_subsample'],
-                                      learning_rate=self.settings['grad_boost_lr'],
-                                      min_child_samples=self.settings['min_samples_leaf'],
-                                      max_depth=self.settings['max_depth'])
-            model.fit(train_data_x, train_data_y, eval_set=[(valid_data_x, valid_data_y)],
-                      early_stopping_rounds=50)
+            if self.settings['grid_search'] == True:
+                parametres = {'learning_rate': [0.1, 0.1, 0.05, 0.01], 'min_child_samples' : [20,50,100,200],
+                              'max_depth': [2, 3, 4, 5, 6, 7], 'subsample': [1.0, 0.8, 0.5, 0.2]}
+                # classifieur à utiliser – gradient boosting
+                models = lgb.LGBMRegressor(objective='regression', reg_alpha=100, reg_lambda=100)
+                # instanciation de la recherche
+                grille = GridSearchCV(estimator=models, param_grid=parametres, scoring="neg_mean_squared_error")
+                # lancer l'exploration
+                model = grille.fit(train_data_x, train_data_y)
+                # meilleur paramétrage : {'subsample': 0.5, 'learning_rate': 0.2, 'max_depth': 4}
+                print(model.best_params_)
+            else:
+                model = lgb.LGBMRegressor(objective='regression', reg_alpha=100, reg_lambda=100, n_estimators=self.settings['grad_boost_param'],
+                                          subsample=self.settings['grad_boost_subsample'],
+                                          learning_rate=self.settings['grad_boost_lr'],
+                                          min_child_samples=self.settings['min_samples_leaf'],
+                                          max_depth=self.settings['max_depth'])
+                model.fit(train_data_x, train_data_y, eval_set=[(valid_data_x, valid_data_y)],
+                          early_stopping_rounds=50)
         else:
-            model = ensemble.GradientBoostingRegressor(n_estimators=self.settings['grad_boost_param'],
+
+            if self.settings['grid_search'] == True:
+                parametres = {'learning_rate': [0.1, 0.1, 0.05, 0.01], 'n_estimators': [200, 400, 1000],
+                              'max_depth': [2, 3, 4, 5, 6, 7], 'subsample': [1.0, 0.8, 0.5, 0.2]}
+                # classifieur à utiliser – gradient boosting
+                models = ensemble.GradientBoostingRegressor()
+                # instanciation de la recherche
+                grille = GridSearchCV(estimator=models, param_grid=parametres, scoring="neg_mean_squared_error")
+                # lancer l'exploration
+                model = grille.fit(train_data_x, train_data_y)
+                # meilleur paramétrage : {'subsample': 0.5, 'learning_rate': 0.2, 'max_depth': 4}
+                print(model.best_params_)
+
+                # prédiction avec le ‘’meilleur’’ modèle identifié
+            else:
+                model = ensemble.GradientBoostingRegressor(n_estimators=self.settings['grad_boost_param'],
                                                        learning_rate=self.settings['grad_boost_lr'],
                                                        subsample=self.settings['grad_boost_subsample'],
                                                        max_features=self.settings['grad_boost_max_features'],
                                                        verbose=1)
-            model.fit(train_data_x, train_data_y)
+                model.fit(train_data_x, train_data_y)
         train_pred = model.predict(train_data_x)
         if len(valid_data_y != 0):
             valid_pred = model.predict(valid_data_x)
