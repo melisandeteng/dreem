@@ -13,27 +13,25 @@ settings['storing_small_dataset'] = False
 # how to split the 50,000 training examples into training set / validation set
 settings['validation_share'] = 0.2
 # how many time we go through the data
-settings['nb_epoch'] = 15
+settings['nb_epoch'] = 10
 # number of cnn filters
 settings['conv_size'] = 200
-# valid end of nn 0.4007
 # ensemble or lightgbm grad boost?
 settings['lightgbm'] = True
 # name of the file where saving results
 output_name = "grad_boost + CNN"
 
-# use raw data or FFT in neural network?
-settings['NN_FFT'] = True
+# use raw data or FFT in neural network? DO NOT USE IN LAST VERSION
+settings['NN_FFT'] = False
 
 # How many components should we keep from Fast Fourier Transform?
 settings['fft_setting'] = 20
 
 # should we use stored activations if the we use CNN + grad_boost?
-settings['use_stored_activations'] = False
+settings['use_stored_activations'] = True
 # should store activations this time?
-settings['should_store_activations'] = True
-# use only activations or compute grad_boost on activations + raw data?
-settings['do_not_use_raw_features'] = True
+settings['should_store_activations'] = False
+
 if output_name != "grad_boost + CNN" and (settings['use_stored_activations'] or settings['use_only_activations'] or settings['should_store_activations']):
     "You're doing this wrong... don't use stored activations if you're not doing CNN + grad_boost!"
 

@@ -238,42 +238,61 @@ class dreem_model:
 
     def conv_grad_model(self):
         if self.settings['use_stored_activations'] and self.settings['should_store_activations'] is False:
-            activations_train, activations_valid, activations_test = utils.load_activations()
+            activations_train, activations_valid, activations_test = utils.load_activations(False)
+            if self.settings['NN_FFT']:
+                activations_fft_train, activations_fft_valid, activations_fft_test = utils.load_activations(True)
         else:
             branch_eeg, train_pred, valid_pred, test_prediction, train_score, valid_score = self.convolution_model()
 
-            optimizer = 'adam'
-            # optimizer = Adam(lr=self.settings['adam_lr'])
-            branch_eeg.compile(loss='mse', optimizer=optimizer)
-
-            truncated_branch_eeg = Sequential()
-
             if self.settings['NN_FFT']:
-                truncated_branch_eeg.add(Conv1D(kernel_size=3998+np.shape(self.train_data_meta)[1]-4, filters=self.settings['conv_size'], input_shape=(3998+np.shape(self.train_data_meta)[1]-4, 1), activation='relu',
-                                        weights=branch_eeg.layers[0].get_weights()))
-            else:
-                truncated_branch_eeg.add(Conv1D(kernel_size=2000 + np.shape(self.train_data_meta)[1] - 4, filters=self.settings['conv_size'], input_shape=(2000 + np.shape(self.train_data_meta)[1] - 4, 1), activation='relu',
-                                        weights=branch_eeg.layers[0].get_weights()))
-            truncated_branch_eeg.add(Dropout(0.5))
-            truncated_branch_eeg.add(Dense(self.settings['conv_size'], activation='relu',
-                                       weights=branch_eeg.layers[2].get_weights()))
-            truncated_branch_eeg.add(Dropout(0.5))
-            truncated_branch_eeg.add(Dense(self.settings['conv_size'], activation='relu',
-                                       weights=branch_eeg.layers[4].get_weights()))
-            truncated_branch_eeg.add(Dropout(0.5))
-            truncated_branch_eeg.add(Dense(int(0.5*self.settings['conv_size']), activation='relu',
-                                       weights=branch_eeg.layers[6].get_weights()))
-            truncated_branch_eeg.add(Dropout(0.5))
-            # truncated_branch_eeg.add(Dense(self.settings['conv_size'], activation='relu',
-            #                            weights=branch_eeg.layers[8].get_weights()))
-            # truncated_branch_eeg.add(Dropout(0.5))
-            truncated_branch_eeg.add(Flatten())
+                truncated_branch_eeg_fft = Sequential()
+                truncated_branch_eeg_fft.add(
+                    Conv1D(kernel_size=3998 + np.shape(self.train_data_meta)[1] - 4, filters=self.settings['conv_size'],
+                           input_shape=(3998 + np.shape(self.train_data_meta)[1] - 4, 1), activation='relu',
+                           weights=branch_eeg.layers[0].get_weights()))
+                truncated_branch_eeg_fft.add(
+                    Conv1D(kernel_size=2000 + np.shape(self.train_data_meta)[1] - 4, filters=self.settings['conv_size'],
+                           input_shape=(2000 + np.shape(self.train_data_meta)[1] - 4, 1), activation='relu',
+                           weights=branch_eeg.layers[0].get_weights()))
+                truncated_branch_eeg_fft.add(Dropout(0.5))
+                truncated_branch_eeg_fft.add(Dense(self.settings['conv_size'], activation='relu',
+                                               weights=branch_eeg.layers[2].get_weights()))
+                truncated_branch_eeg_fft.add(Dropout(0.5))
+                truncated_branch_eeg_fft.add(Dense(self.settings['conv_size'], activation='relu',
+                                               weights=branch_eeg.layers[4].get_weights()))
+                truncated_branch_eeg_fft.add(Dropout(0.5))
+                truncated_branch_eeg_fft.add(Dense(int(0.5 * self.settings['conv_size']), activation='relu',
+                                               weights=branch_eeg.layers[6].get_weights()))
+                truncated_branch_eeg_fft.add(Dropout(0.5))
+                # truncated_branch_eeg_fft.add(Dense(self.settings['conv_size'], activation='relu',
+                #                            weights=branch_eeg.layers[8].get_weights()))
+                # truncated_branch_eeg_fft.add(Dropout(0.5))
+                truncated_branch_eeg_fft.add(Flatten())
 
-            if self.settings['NN_FFT']:
-                activations_train = truncated_branch_eeg.predict(np.concatenate((self.train_fft, np.reshape(self.train_data_meta[:,4:], (-1, np.shape(self.train_data_meta)[1]-4, 1))), axis=1))
-                activations_valid = truncated_branch_eeg.predict(np.concatenate((self.valid_fft, np.reshape(self.valid_data_meta[:,4:], (-1, np.shape(self.valid_data_meta)[1]-4, 1))), axis=1))
-                activations_test = truncated_branch_eeg.predict(np.concatenate((self.test_fft, np.reshape(self.test_data_meta[:,4:], (-1, np.shape(self.test_data_meta)[1]-4, 1))), axis=1))
+                activations_train_fft = truncated_branch_eeg_fft.predict(np.concatenate((self.train_fft, np.reshape(self.train_data_meta[:,4:], (-1, np.shape(self.train_data_meta)[1]-4, 1))), axis=1))
+                activations_valid_fft = truncated_branch_eeg_fft.predict(np.concatenate((self.valid_fft, np.reshape(self.valid_data_meta[:,4:], (-1, np.shape(self.valid_data_meta)[1]-4, 1))), axis=1))
+                activations_test_fft = truncated_branch_eeg_fft.predict(np.concatenate((self.test_fft, np.reshape(self.test_data_meta[:,4:], (-1, np.shape(self.test_data_meta)[1]-4, 1))), axis=1))
             else:
+                truncated_branch_eeg = Sequential()
+
+                truncated_branch_eeg.add(
+                    Conv1D(kernel_size=2000 + np.shape(self.train_data_meta)[1] - 4, filters=self.settings['conv_size'],
+                           input_shape=(2000 + np.shape(self.train_data_meta)[1] - 4, 1), activation='relu',
+                           weights=branch_eeg.layers[0].get_weights()))
+                truncated_branch_eeg.add(Dropout(0.5))
+                truncated_branch_eeg.add(Dense(self.settings['conv_size'], activation='relu',
+                                               weights=branch_eeg.layers[2].get_weights()))
+                truncated_branch_eeg.add(Dropout(0.5))
+                truncated_branch_eeg.add(Dense(self.settings['conv_size'], activation='relu',
+                                               weights=branch_eeg.layers[4].get_weights()))
+                truncated_branch_eeg.add(Dropout(0.5))
+                truncated_branch_eeg.add(Dense(int(0.5 * self.settings['conv_size']), activation='relu',
+                                               weights=branch_eeg.layers[6].get_weights()))
+                truncated_branch_eeg.add(Dropout(0.5))
+                # truncated_branch_eeg.add(Dense(self.settings['conv_size'], activation='relu',
+                #                            weights=branch_eeg.layers[8].get_weights()))
+                # truncated_branch_eeg.add(Dropout(0.5))
+                truncated_branch_eeg.add(Flatten())
                 activations_train = truncated_branch_eeg.predict(np.concatenate((self.train_data_eeg, np.reshape(self.train_data_meta[:,4:], (-1, np.shape(self.train_data_meta)[1]-4, 1))), axis=1))
                 activations_valid = truncated_branch_eeg.predict(np.concatenate((self.valid_data_eeg, np.reshape(self.valid_data_meta[:,4:], (-1, np.shape(self.valid_data_meta)[1]-4, 1))), axis=1))
                 activations_test = truncated_branch_eeg.predict(np.concatenate((self.test_data_eeg, np.reshape(self.test_data_meta[:,4:], (-1, np.shape(self.test_data_meta)[1]-4, 1))), axis=1))
@@ -284,13 +303,45 @@ class dreem_model:
                 else:
                     utils.store_activations(activations_train, activations_valid, activations_test, self.settings['NN_FFT'])
 
-        if self.settings['do_not_use_raw_features']:
-            if self.settings['small_dataset']:
-                train_concat = activations_train[0:round((1 - self.settings['validation_share']) * len(self.df_train))]
-                valid_concat = activations_valid[0:round(self.settings['validation_share'] * len(self.df_train))]
-                test_concat = activations_test[0:len(self.df_train)]
-            else:
+        if self.settings['small_dataset']:
+            train_concat = activations_train[0:round((1 - self.settings['validation_share']) * len(self.df_train))]
+            valid_concat = activations_valid[0:round(self.settings['validation_share'] * len(self.df_train))]
+            test_concat = activations_test[0:len(self.df_train)]
+        else:
+            if self.settings['NN_FFT']:
+                train_concat = np.concatenate(
+                    (activations_train,
+                     activations_fft_train,
+                     np.apply_along_axis(lambda x: np.fft.hfft(x)[0:self.settings['fft_setting']], 1,
+                                         self.train_data_resp[:, :, 0]),
+                     np.apply_along_axis(lambda x: np.fft.hfft(x)[0:self.settings['fft_setting']], 1,
+                                         self.train_data_resp[:, :, 1]),
+                     np.apply_along_axis(lambda x: np.fft.hfft(x)[0:self.settings['fft_setting']], 1,
+                                         self.train_data_resp[:, :, 2]),
+                     self.train_data_meta[:,4:]), axis=1)
 
+                valid_concat = np.concatenate(
+                    (activations_valid,
+                     activations_fft_valid,
+                     np.apply_along_axis(lambda x: np.fft.hfft(x)[0:self.settings['fft_setting']], 1,
+                                         self.valid_data_resp[:, :, 0]),
+                     np.apply_along_axis(lambda x: np.fft.hfft(x)[0:self.settings['fft_setting']], 1,
+                                         self.valid_data_resp[:, :, 1]),
+                     np.apply_along_axis(lambda x: np.fft.hfft(x)[0:self.settings['fft_setting']], 1,
+                                         self.valid_data_resp[:, :, 2]),
+                     self.valid_data_meta[:,4:]), axis=1)
+                test_concat = np.concatenate(
+                    (activations_test,
+                     activations_fft_test,
+                     np.apply_along_axis(lambda x: np.fft.hfft(x)[0:self.settings['fft_setting']], 1,
+                                         self.test_data_resp[:, :, 0]),
+                     np.apply_along_axis(lambda x: np.fft.hfft(x)[0:self.settings['fft_setting']], 1,
+                                         self.test_data_resp[:, :, 1]),
+                     np.apply_along_axis(lambda x: np.fft.hfft(x)[0:self.settings['fft_setting']], 1,
+                                         self.test_data_resp[:, :, 2]),
+                     self.test_data_meta[:,4:]), axis=1)
+                print("Using activations (FFT + normal) + OHE + FFT (total train dimension: %s" % str(np.shape(train_concat)))
+            else:
                 train_concat = np.concatenate(
                     (activations_train,
                      np.apply_along_axis(lambda x: np.fft.hfft(x)[0:self.settings['fft_setting']], 1,
@@ -301,7 +352,7 @@ class dreem_model:
                                          self.train_data_resp[:, :, 2]),
                      np.apply_along_axis(lambda x: np.fft.hfft(x)[0:self.settings['fft_setting']], 1,
                                          self.train_data_eeg[:, :, 0]),
-                     self.train_data_meta[:,4:]), axis=1)
+                     self.train_data_meta[:, 4:]), axis=1)
 
                 valid_concat = np.concatenate(
                     (activations_valid,
@@ -313,7 +364,7 @@ class dreem_model:
                                          self.valid_data_resp[:, :, 2]),
                      np.apply_along_axis(lambda x: np.fft.hfft(x)[0:self.settings['fft_setting']], 1,
                                          self.valid_data_eeg[:, :, 0]),
-                     self.valid_data_meta[:,4:]), axis=1)
+                     self.valid_data_meta[:, 4:]), axis=1)
                 test_concat = np.concatenate(
                     (activations_test,
                      np.apply_along_axis(lambda x: np.fft.hfft(x)[0:self.settings['fft_setting']], 1,
@@ -324,21 +375,9 @@ class dreem_model:
                                          self.test_data_resp[:, :, 2]),
                      np.apply_along_axis(lambda x: np.fft.hfft(x)[0:self.settings['fft_setting']], 1,
                                          self.test_data_eeg[:, :, 0]),
-                     self.test_data_meta[:,4:]), axis=1)
+                     self.test_data_meta[:, 4:]), axis=1)
                 print("Using activations + OHE + FFT (total train dimension: %s" % str(np.shape(train_concat)))
-        else:
-            if self.settings['small_dataset']:
-                train_concat = activations_train[0:round((1-self.settings['validation_share']) * len(self.df_train))]
-                valid_concat = activations_valid[0:round(self.settings['validation_share'] * len(self.df_train))]
-                test_concat = activations_test[0:len(self.df_train)]
-            else:
-                train_concat = np.concatenate(
-                    (activations_train, np.reshape(self.train_data_x, (-1, np.shape(self.train_data_x)[1]))), axis=1)
-                valid_concat = np.concatenate(
-                    (activations_valid, np.reshape(self.valid_data_x, (-1, np.shape(self.train_data_x)[1]))), axis=1)
-                test_concat = np.concatenate(
-                    (activations_test, np.reshape(self.test_data_x, (-1, np.shape(self.train_data_x)[1]))), axis=1)
-                print("Using activations + raw features")
+
 
         # apply gradient boost model
         train_pred, valid_pred, test_pred, train_score, valid_score = self.simple_gradient_boost_model(

@@ -4,30 +4,36 @@ import os
 import local_info
 
 
-def load_activations():
+def load_activations(is_FFT):
     print("Reading activations dataset...")
-    activations_train = np.array(pd.read_csv(local_info.data_path + 'activations_train.csv').values)
-    activations_valid = np.array(pd.read_csv(local_info.data_path + 'activations_valid.csv').values)
-    activations_test = np.array(pd.read_csv(local_info.data_path + 'activations_test.csv').values)
-    # activations_train = np.loadtxt(local_info.data_path + 'activations_train.csv', delimiter=",")
-    # activations_valid = np.loadtxt(local_info.data_path + 'activations_valid.csv', delimiter=",")
-    # activations_test = np.loadtxt(local_info.data_path + 'activations_test.csv', delimiter=",")
-    print("Activations have been read from csv! (train shape is %s)" % str(np.shape(activations_train)))
+    if is_FFT:
+        activations_train = np.array(pd.read_csv(local_info.data_path + 'activations_train_fft.csv').values)
+        activations_valid = np.array(pd.read_csv(local_info.data_path + 'activations_valid_fft.csv').values)
+        activations_test = np.array(pd.read_csv(local_info.data_path + 'activations_test_fft.csv').values)
+        print("Activations (FFT) have been read from csv! (train shape is %s)" % str(np.shape(activations_train)))
+    else:
+        activations_train = np.array(pd.read_csv(local_info.data_path + 'activations_train.csv').values)
+        activations_valid = np.array(pd.read_csv(local_info.data_path + 'activations_valid.csv').values)
+        activations_test = np.array(pd.read_csv(local_info.data_path + 'activations_test.csv').values)
+        # activations_train = np.loadtxt(local_info.data_path + 'activations_train.csv', delimiter=",")
+        # activations_valid = np.loadtxt(local_info.data_path + 'activations_valid.csv', delimiter=",")
+        # activations_test = np.loadtxt(local_info.data_path + 'activations_test.csv', delimiter=",")
+        print("Activations have been read from csv! (train shape is %s)" % str(np.shape(activations_train)))
     return activations_train, activations_valid, activations_test
 
 
 def store_activations(activ_train, activ_valid, activ_test, is_FFT):
     os.chdir(local_info.data_path)
     if is_FFT:
-        pd.DataFrame(activ_train).to_csv('activations_train.csv', encoding='utf-8', index=False)
-        pd.DataFrame(activ_valid).to_csv('activations_valid.csv', encoding='utf-8', index=False)
-        pd.DataFrame(activ_test).to_csv('activations_test.csv', encoding='utf-8', index=False)
-        print("Activations have been stored! (train shape is %s)\n" % str(np.shape(activ_train)))
-    else:
         pd.DataFrame(activ_train).to_csv('activations_train_FFT.csv', encoding='utf-8', index=False)
         pd.DataFrame(activ_valid).to_csv('activations_valid_FFT.csv', encoding='utf-8', index=False)
         pd.DataFrame(activ_test).to_csv('activations_test_FFT.csv', encoding='utf-8', index=False)
         print("Activations (FFT) have been stored! (train shape is %s)\n" % str(np.shape(activ_train)))
+    else:
+        pd.DataFrame(activ_train).to_csv('activations_train.csv', encoding='utf-8', index=False)
+        pd.DataFrame(activ_valid).to_csv('activations_valid.csv', encoding='utf-8', index=False)
+        pd.DataFrame(activ_test).to_csv('activations_test.csv', encoding='utf-8', index=False)
+        print("Activations have been stored! (train shape is %s)\n" % str(np.shape(activ_train)))
     # np.savetxt('activations_train.csv', activ_train, delimiter=",")
     # np.savetxt('activations_valid.csv', activ_valid, delimiter=",")
     # np.savetxt('activations_test.csv', activ_test, delimiter=",")
